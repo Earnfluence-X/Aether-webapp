@@ -7,53 +7,82 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .admin-table th,
+        .admin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .admin-table th {
+            color: #00FFC8;
+            font-weight: 600;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+        }
+        .status-pending {
+            background: rgba(255, 184, 0, 0.2);
+            color: #FFB800;
+        }
+        .status-approved {
+            background: rgba(0, 255, 200, 0.2);
+            color: #00FFC8;
+        }
+        .admin-login {
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        .admin-only {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="logo">AETHER</div>
-    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
-    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
-    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
-    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
-    <a href="admin.html" class="nav-item active"><i class="fas fa-shield-alt"></i> Admin</a>
-    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+<!-- Admin Login Section (Only visible when not logged in as admin) -->
+<div id="adminLoginSection" class="admin-login">
+    <div class="card" style="padding: 40px;">
+        <div class="logo" style="margin-bottom: 20px;">AETHER ADMIN</div>
+        <p style="margin-bottom: 20px;">Enter your master password to access admin panel</p>
+        <div id="adminError" style="color: #FF3366; margin-bottom: 10px; display: none;"></div>
+        <div class="input-group"><input type="password" id="adminPassword" placeholder="Master Password"></div>
+        <button class="btn-primary" style="width:100%" onclick="verifyAdmin()">Access Admin Panel</button>
+    </div>
 </div>
 
-<div class="main">
-    <h1>Admin Panel</h1>
-    <p style="color: rgba(232,232,232,0.6); margin-bottom: 30px;">Manage users, jobs, and platform activity</p>
-    
-    <div class="stats-grid">
-        <div class="stat-card"><div class="value" id="userCount">0</div><div>Total Users</div></div>
-        <div class="stat-card"><div class="value" id="jobCount">0</div><div>Total Jobs</div></div>
-        <div class="stat-card"><div class="value" id="productCount">0</div><div>Products</div></div>
-        <div class="stat-card"><div class="value" id="appCount">0</div><div>Applications</div></div>
+<!-- Admin Dashboard (Only visible after correct password) -->
+<div id="adminDashboard" class="admin-only">
+    <div class="sidebar">
+        <div class="logo">AETHER ADMIN</div>
+        <a href="#" class="nav-item active" onclick="showAdminSection('overview')"><i class="fas fa-chart-line"></i> Overview</a>
+        <a href="#" class="nav-item" onclick="showAdminSection('users')"><i class="fas fa-users"></i> Users</a>
+        <a href="#" class="nav-item" onclick="showAdminSection('jobs')"><i class="fas fa-briefcase"></i> Jobs</a>
+        <a href="#" class="nav-item" onclick="showAdminSection('products')"><i class="fas fa-store"></i> Products</a>
+        <a href="#" class="nav-item" onclick="showAdminSection('transactions')"><i class="fas fa-chart-line"></i> Transactions</a>
+        <a href="#" class="nav-item" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
-    
-    <div class="card" style="margin-bottom: 30px;">
-        <h3>Recent Users</h3>
-        <div style="overflow-x: auto;">
-            <table class="admin-table">
-                <thead>
-                    <tr><th>Name</th><th>Email</th><th>Verified</th><th>Joined</th></tr>
-                </thead>
-                <tbody id="usersTable"></tbody>
-            </table>
+
+    <div class="main">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h1>Admin Dashboard</h1>
+            <button class="btn-outline" onclick="adminLogout()">Exit Admin Mode</button>
         </div>
-    </div>
-    
-    <div class="card">
-        <h3>Recent Jobs</h3>
-        <div style="overflow-x: auto;">
-            <table class="admin-table">
-                <thead>
-                    <tr><th>Title</th><th>Company</th><th>Posted</th><th>Action</th></tr>
-                </thead>
-                <tbody id="jobsTable"></tbody>
-            </table>
-        </div>
+        
+        <div id="adminContent"></div>
     </div>
 </div>
 
@@ -61,58 +90,288 @@
 <script src="supabase-config.js"></script>
 <script src="script.js"></script>
 <script>
-    let currentUser = null;
+    // ADMIN MASTER PASSWORD - CHANGE THIS TO YOUR SECRET PASSWORD
+    const MASTER_PASSWORD = 'AetherAdmin2025';
     
-    async function loadAdminData() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if(!user) { window.location.href = 'login.html'; return; }
-        currentUser = user;
-        
-        // Get all data
-        const { data: profiles } = await supabaseClient.from('profiles').select('*');
-        const { data: jobs } = await supabaseClient.from('jobs').select('*');
-        const { data: products } = await supabaseClient.from('products').select('*');
-        const { data: applications } = await supabaseClient.from('applications').select('*');
-        
-        document.getElementById('userCount').innerHTML = profiles?.length || 0;
-        document.getElementById('jobCount').innerHTML = jobs?.length || 0;
-        document.getElementById('productCount').innerHTML = products?.length || 0;
-        document.getElementById('appCount').innerHTML = applications?.length || 0;
-        
-        // Users table
-        const usersTable = document.getElementById('usersTable');
-        usersTable.innerHTML = profiles?.slice(0, 10).map(p => `
-            <tr>
-                <td>${p.full_name || 'N/A'}</td>
-                <td>${p.email || p.id.substring(0, 8)}...</td>
-                <td>${p.verified ? '✅' : '❌'}</td>
-                <td>${formatDate(p.created_at)}</td>
-            </tr>
-        `).join('') || '<tr><td colspan="4">No users found</td></tr>';
-        
-        // Jobs table
-        const jobsTable = document.getElementById('jobsTable');
-        jobsTable.innerHTML = jobs?.slice(0, 10).map(job => `
-            <tr>
-                <td>${job.title}</td>
-                <td>${job.company}</td>
-                <td>${formatDate(job.created_at)}</td>
-                <td><button class="btn-sm" onclick="deleteJob('${job.id}')">Delete</button></td>
-            </tr>
-        `).join('') || '<tr><td colspan="4">No jobs found</td></tr>';
-    }
+    let currentSection = 'overview';
     
-    async function deleteJob(jobId) {
-        if(confirm('Are you sure you want to delete this job?')) {
-            await supabaseClient.from('jobs').delete().eq('id', jobId);
-            showNotification('Job deleted');
-            loadAdminData();
+    function verifyAdmin() {
+        const password = document.getElementById('adminPassword').value;
+        const errorDiv = document.getElementById('adminError');
+        
+        if (password === MASTER_PASSWORD) {
+            localStorage.setItem('aether_admin_logged_in', 'true');
+            document.getElementById('adminLoginSection').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            loadAdminOverview();
+        } else {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Invalid master password';
         }
     }
     
-    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+    function checkAdminAuth() {
+        if (localStorage.getItem('aether_admin_logged_in') === 'true') {
+            document.getElementById('adminLoginSection').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            loadAdminOverview();
+        }
+    }
     
-    loadAdminData();
+    async function loadAdminOverview() {
+        const content = document.getElementById('adminContent');
+        
+        try {
+            // Get counts
+            const { data: profiles, error: profilesError } = await supabaseClient.from('profiles').select('id');
+            const { data: jobs, error: jobsError } = await supabaseClient.from('jobs').select('id');
+            const { data: products, error: productsError } = await supabaseClient.from('products').select('id');
+            const { data: transactions, error: transactionsError } = await supabaseClient.from('transactions').select('amount');
+            
+            if (profilesError) console.error('Profiles error:', profilesError);
+            if (jobsError) console.error('Jobs error:', jobsError);
+            if (productsError) console.error('Products error:', productsError);
+            if (transactionsError) console.error('Transactions error:', transactionsError);
+            
+            const totalRevenue = transactions?.reduce((sum, t) => sum + (t.amount > 0 ? t.amount : 0), 0) || 0;
+            
+            content.innerHTML = `
+                <div class="admin-stats">
+                    <div class="stat-card"><div class="value">${profiles?.length || 0}</div><h3>Total Users</h3></div>
+                    <div class="stat-card"><div class="value">${jobs?.length || 0}</div><h3>Total Jobs</h3></div>
+                    <div class="stat-card"><div class="value">${products?.length || 0}</div><h3>Total Products</h3></div>
+                    <div class="stat-card"><div class="value">$${totalRevenue.toFixed(2)}</div><h3>Total Revenue</h3></div>
+                </div>
+                <div class="card">
+                    <h3>Recent Activity</h3>
+                    <p>Select a section from the sidebar to manage users, jobs, or products.</p>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading overview:', error);
+            content.innerHTML = '<div class="card"><p style="color: #FF3366;">Error loading admin data. Check your Supabase connection.</p></div>';
+        }
+    }
+    
+    async function showAdminSection(section) {
+        currentSection = section;
+        const content = document.getElementById('adminContent');
+        
+        if (section === 'overview') {
+            loadAdminOverview();
+            return;
+        }
+        
+        if (section === 'users') {
+            try {
+                const { data: users, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+                
+                content.innerHTML = `
+                    <div class="card">
+                        <h3>All Users</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr><th>Name</th><th>Email</th><th>Verified</th><th>Joined</th><th>Action</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${users?.map(u => `
+                                        <tr>
+                                            <td>${escapeHtml(u.full_name || 'N/A')}</td>
+                                            <td>${escapeHtml(u.email || u.id.substring(0, 8))}...</td>
+                                            <td>${u.verified ? '<span class="status-badge status-approved">✅ Verified</span>' : '<span class="status-badge status-pending">❌ Not Verified</span>'}</td>
+                                            <td>${formatDate(u.created_at)}</td>
+                                            <td><button class="btn-sm" onclick="verifyUser('${u.id}')">Verify</button></td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="5">No users found</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = '<div class="card"><p style="color: #FF3366;">Error loading users.</p></div>';
+            }
+        }
+        
+        if (section === 'jobs') {
+            try {
+                const { data: jobs, error } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+                
+                content.innerHTML = `
+                    <div class="card">
+                        <h3>All Jobs</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr><th>Title</th><th>Company</th><th>Posted</th><th>Action</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${jobs?.map(j => `
+                                        <tr>
+                                            <td>${escapeHtml(j.title)}</td>
+                                            <td>${escapeHtml(j.company)}</td>
+                                            <td>${formatDate(j.created_at)}</td>
+                                            <td><button class="btn-sm" onclick="deleteJob('${j.id}')">Delete</button></td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="4">No jobs found</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = '<div class="card"><p style="color: #FF3366;">Error loading jobs.</p></div>';
+            }
+        }
+        
+        if (section === 'products') {
+            try {
+                const { data: products, error } = await supabaseClient.from('products').select('*, profiles(full_name)').order('created_at', { ascending: false });
+                if (error) throw error;
+                
+                content.innerHTML = `
+                    <div class="card">
+                        <h3>All Products</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr><th>Title</th><th>Seller</th><th>Price</th><th>Posted</th><th>Action</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${products?.map(p => `
+                                        <tr>
+                                            <td>${escapeHtml(p.title)}</td>
+                                            <td>${escapeHtml(p.profiles?.full_name || 'Unknown')}</td>
+                                            <td>$${parseFloat(p.price).toFixed(2)}</td>
+                                            <td>${formatDate(p.created_at)}</td>
+                                            <td><button class="btn-sm" onclick="deleteProduct('${p.id}')">Delete</button></td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="5">No products found</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = '<div class="card"><p style="color: #FF3366;">Error loading products.</p></div>';
+            }
+        }
+        
+        if (section === 'transactions') {
+            try {
+                const { data: transactions, error } = await supabaseClient.from('transactions').select('*, profiles(full_name)').order('created_at', { ascending: false }).limit(50);
+                if (error) throw error;
+                
+                content.innerHTML = `
+                    <div class="card">
+                        <h3>Recent Transactions</h3>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr><th>User</th><th>Amount</th><th>Type</th><th>Date</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${transactions?.map(t => `
+                                        <tr>
+                                            <td>${escapeHtml(t.profiles?.full_name || t.user_id?.substring(0, 8))}</td>
+                                            <td style="color: ${t.amount > 0 ? '#00FFC8' : '#FF3366'}">${t.amount > 0 ? '+' : ''}$${Math.abs(t.amount).toFixed(2)}</td>
+                                            <td>${t.type || 'transaction'}</td>
+                                            <td>${formatDate(t.created_at)}</td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="4">No transactions found</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                content.innerHTML = '<div class="card"><p style="color: #FF3366;">Error loading transactions.</p></div>';
+            }
+        }
+    }
+    
+    async function verifyUser(userId) {
+        try {
+            await supabaseClient.from('profiles').update({ verified: true }).eq('id', userId);
+            showNotification('User verified successfully!');
+            showAdminSection('users');
+        } catch (error) {
+            showNotification('Error verifying user', 'error');
+        }
+    }
+    
+    async function deleteJob(jobId) {
+        if (confirm('Are you sure you want to delete this job?')) {
+            try {
+                await supabaseClient.from('jobs').delete().eq('id', jobId);
+                showNotification('Job deleted successfully');
+                showAdminSection('jobs');
+            } catch (error) {
+                showNotification('Error deleting job', 'error');
+            }
+        }
+    }
+    
+    async function deleteProduct(productId) {
+        if (confirm('Are you sure you want to delete this product?')) {
+            try {
+                await supabaseClient.from('products').delete().eq('id', productId);
+                showNotification('Product deleted successfully');
+                showAdminSection('products');
+            } catch (error) {
+                showNotification('Error deleting product', 'error');
+            }
+        }
+    }
+    
+    function adminLogout() {
+        localStorage.removeItem('aether_admin_logged_in');
+        document.getElementById('adminLoginSection').style.display = 'block';
+        document.getElementById('adminDashboard').style.display = 'none';
+        document.getElementById('adminPassword').value = '';
+        showNotification('Logged out of admin mode');
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString();
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = type === 'success' ? '#00FFC8' : '#FF3366';
+        notification.style.color = type === 'success' ? '#0A0A0F' : '#FFFFFF';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        notification.style.fontWeight = '500';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    // Make functions global for onclick handlers
+    window.verifyAdmin = verifyAdmin;
+    window.showAdminSection = showAdminSection;
+    window.verifyUser = verifyUser;
+    window.deleteJob = deleteJob;
+    window.deleteProduct = deleteProduct;
+    window.adminLogout = adminLogout;
+    
+    checkAdminAuth();
 </script>
 </body>
 </html>
