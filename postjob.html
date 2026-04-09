@@ -21,24 +21,11 @@
             overflow: hidden;
             position: relative;
         }
-        .image-preview img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
+        .image-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .remove-image {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0,0,0,0.7);
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: #FF3366;
+            position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7);
+            border-radius: 50%; width: 25px; height: 25px; display: flex;
+            align-items: center; justify-content: center; cursor: pointer; color: #FF3366;
         }
     </style>
 </head>
@@ -51,6 +38,7 @@
     <a href="jobs.html" class="nav-item active"><i class="fas fa-briefcase"></i> Jobs</a>
     <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
     <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
@@ -67,7 +55,7 @@
                 <div id="logoPreview" class="image-preview" style="display: none;"></div>
             </div>
             <div class="input-group"><label>Location</label><input type="text" id="jobLocation" placeholder="City, Country or Remote"></div>
-            <div class="input-group"><label>Job Type</label><select id="jobType"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Remote</option><option>Internship</option></select></div>
+            <div class="input-group"><label>Job Type</label><select id="jobType"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Remote</option></select></div>
             <div class="input-group"><label>Salary Range</label><input type="text" id="jobSalary" placeholder="e.g., $50,000 - $70,000"></div>
             <div class="input-group"><label>Job Description</label><textarea id="jobDesc" rows="8" placeholder="Describe the role, responsibilities, and requirements..."></textarea></div>
             
@@ -78,32 +66,41 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="script.js"></script>
 <script>
+    // Supabase Config (inlined)
+    const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const AVATAR_BUCKET = 'avatars';
+    const JOB_BUCKET = 'job-images';
+    const PRODUCT_BUCKET = 'product-images';
+    
     let currentLogoFile = null;
     
-    // Image preview handler
-    document.getElementById('companyLogo').addEventListener('change', async (e) => {
+    function showNotification(message) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = '#00FFC8';
+        notification.style.color = '#0A0A0F';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    document.getElementById('companyLogo').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-        
         currentLogoFile = file;
-        
-        // Preview
         const reader = new FileReader();
         reader.onload = (event) => {
-            const previewDiv = document.getElementById('logoPreview');
-            previewDiv.style.display = 'flex';
-            previewDiv.innerHTML = `
-                <img src="${event.target.result}" style="max-width:100%; max-height:100%;">
-                <div class="remove-image" onclick="removeLogo()">✕</div>
-            `;
+            const preview = document.getElementById('logoPreview');
+            preview.style.display = 'flex';
+            preview.innerHTML = `<img src="${event.target.result}"><div class="remove-image" onclick="removeLogo()">✕</div>`;
         };
         reader.readAsDataURL(file);
     });
@@ -116,38 +113,22 @@
     
     async function uploadLogo(userId, jobId) {
         if (!currentLogoFile) return null;
-        
-        const fileExt = currentLogoFile.name.split('.').pop();
-        const fileName = `job_${userId}_${jobId}.${fileExt}`;
-        
-        const { data, error } = await supabaseClient.storage
-            .from('job-images')
-            .upload(fileName, currentLogoFile);
-        
-        if (error) {
-            console.error('Upload error:', error);
-            return null;
-        }
-        
-        const { data: { publicUrl } } = supabaseClient.storage.from('job-images').getPublicUrl(fileName);
-        return publicUrl;
+        const fileName = `job_${userId}_${jobId}.${currentLogoFile.name.split('.').pop()}`;
+        await supabaseClient.storage.from(JOB_BUCKET).upload(fileName, currentLogoFile);
+        const { data } = supabaseClient.storage.from(JOB_BUCKET).getPublicUrl(fileName);
+        return data.publicUrl;
     }
     
     async function submitJob() {
         const { data: { user } } = await supabaseClient.auth.getUser();
-        if(!user) { window.location.href = 'login.html'; return; }
+        if (!user) { window.location.href = 'login.html'; return; }
         
         const title = document.getElementById('jobTitle').value;
         const company = document.getElementById('jobCompany').value;
-        
-        if(!title || !company) {
-            alert('Please fill in job title and company name');
-            return;
-        }
+        if (!title || !company) { alert('Please fill in job title and company'); return; }
         
         const jobData = {
-            title: title,
-            company: company,
+            title, company,
             location: document.getElementById('jobLocation').value,
             type: document.getElementById('jobType').value,
             salary_range: document.getElementById('jobSalary').value,
@@ -156,25 +137,18 @@
         };
         
         const { data: job, error } = await supabaseClient.from('jobs').insert([jobData]).select();
+        if (error) { alert('Error: ' + error.message); return; }
         
-        if (error) {
-            alert('Error posting job: ' + error.message);
-            return;
-        }
-        
-        // Upload logo if exists
         if (currentLogoFile && job && job[0]) {
             const logoUrl = await uploadLogo(user.id, job[0].id);
-            if (logoUrl) {
-                await supabaseClient.from('jobs').update({ logo_url: logoUrl }).eq('id', job[0].id);
-            }
+            if (logoUrl) await supabaseClient.from('jobs').update({ logo_url: logoUrl }).eq('id', job[0].id);
         }
         
         showNotification('Job posted successfully!');
         setTimeout(() => window.location.href = 'jobs.html', 1500);
     }
     
-    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+    window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
 </script>
 </body>
 </html>
