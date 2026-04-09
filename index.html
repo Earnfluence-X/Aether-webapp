@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether | The Professional Ecosystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="logo">AETHER</div>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="login.html">Sign In</a>
+        <button class="btn-outline" onclick="window.location.href='signup.html'">Get Started</button>
+    </div>
+</nav>
+
+<section class="hero">
+    <div style="display: inline-block; padding: 6px 16px; background: rgba(0,255,200,0.1); border: 1px solid rgba(0,255,200,0.3); border-radius: 50px; font-size: 0.7rem; margin-bottom: 20px;">✦ THE PROFESSIONAL ECOSYSTEM ✦</div>
+    <h1>One platform.<br>Your entire career.</h1>
+    <p class="hero-sub">Profile · Jobs · Payments · Commerce — All in one place.</p>
+    <div style="display: flex; gap: 15px; justify-content: center;">
+        <button class="btn-primary" onclick="window.location.href='signup.html'">Get Started →</button>
+        <button class="btn-outline" onclick="window.location.href='login.html'">Sign In</button>
+    </div>
+</section>
+
+<section id="features" style="padding: 60px 5%;">
+    <h2 style="text-align: center; font-size: 2rem; margin-bottom: 40px;">Everything you need</h2>
+    <div class="features-grid">
+        <div class="feature-card"><div class="feature-icon">✅</div><h3>Verified Profiles</h3><p>Real identities, real trust</p></div>
+        <div class="feature-card"><div class="feature-icon">💼</div><h3>Job Marketplace</h3><p>Find work or hire talent</p></div>
+        <div class="feature-card"><div class="feature-icon">🎥</div><h3>Virtual Interviews</h3><p>Hire from anywhere</p></div>
+        <div class="feature-card"><div class="feature-icon">💰</div><h3>In-App Wallet</h3><p>Secure payments</p></div>
+        <div class="feature-card"><div class="feature-icon">🛒</div><h3>Sell Anything</h3><p>Digital products, services</p></div>
+        <div class="feature-card"><div class="feature-icon">🔒</div><h3>Bank-Grade Security</h3><p>Your data is safe</p></div>
+    </div>
+</section>
+
+<section id="pricing" style="padding: 60px 5%; background: linear-gradient(180deg, transparent, rgba(0,255,200,0.02));">
+    <h2 style="text-align: center; font-size: 2rem; margin-bottom: 40px;">Simple, transparent pricing</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; max-width: 1000px; margin: 0 auto;">
+        <div class="card" style="text-align: center;">
+            <h3>Basic</h3>
+            <div style="font-size: 2rem; font-weight: 700; margin: 20px 0; color: #00FFC8;">$0</div>
+            <p>Create profile · Browse jobs · Basic verification</p>
+            <button class="btn-outline" style="margin-top: 20px;" onclick="window.location.href='signup.html'">Get Started</button>
+        </div>
+        <div class="card" style="text-align: center; border-color: #00FFC8;">
+            <h3>Premium</h3>
+            <div style="font-size: 2rem; font-weight: 700; margin: 20px 0; color: #00FFC8;">$9.99<span style="font-size: 1rem;">/mo</span></div>
+            <p>Verified badge · Sell products · Priority support · Analytics</p>
+            <button class="btn-primary" style="margin-top: 20px;" onclick="window.location.href='signup.html'">Join Waitlist</button>
+        </div>
+        <div class="card" style="text-align: center;">
+            <h3>Business</h3>
+            <div style="font-size: 2rem; font-weight: 700; margin: 20px 0; color: #00FFC8;">$49<span style="font-size: 1rem;">/mo</span></div>
+            <p>Post jobs · Team accounts · API access · Dedicated support</p>
+            <button class="btn-outline" style="margin-top: 20px;" onclick="window.location.href='signup.html'">Contact Sales</button>
+        </div>
+    </div>
+</section>
+
+<footer><p>© 2025 Aether — The Professional Ecosystem</p></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+    // Check if already logged in
+    supabaseClient.auth.getSession().then(({ data }) => {
+        if (data.session) {
+            window.location.href = 'dashboard.html';
+        }
+    });
+</script>
+</body>
+</html>

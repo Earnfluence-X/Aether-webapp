@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post a Job - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .image-preview {
+            width: 100%;
+            height: 150px;
+            background: rgba(255,255,255,0.05);
+            border: 1px dashed rgba(0,255,200,0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .remove-image {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FF3366;
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item active"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="main">
+    <div style="max-width: 700px; margin: 0 auto;">
+        <h1>Post a Job</h1>
+        <p style="color: rgba(232,232,232,0.6); margin-bottom: 30px;">Reach qualified professionals</p>
+        
+        <div class="card">
+            <div class="input-group"><label>Job Title *</label><input type="text" id="jobTitle" placeholder="e.g., Senior Frontend Developer"></div>
+            <div class="input-group"><label>Company Name *</label><input type="text" id="jobCompany" placeholder="Your company name"></div>
+            <div class="input-group"><label>Company Logo</label>
+                <input type="file" id="companyLogo" accept="image/jpeg,image/png,image/gif">
+                <div id="logoPreview" class="image-preview" style="display: none;"></div>
+            </div>
+            <div class="input-group"><label>Location</label><input type="text" id="jobLocation" placeholder="City, Country or Remote"></div>
+            <div class="input-group"><label>Job Type</label><select id="jobType"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Remote</option><option>Internship</option></select></div>
+            <div class="input-group"><label>Salary Range</label><input type="text" id="jobSalary" placeholder="e.g., $50,000 - $70,000"></div>
+            <div class="input-group"><label>Job Description</label><textarea id="jobDesc" rows="8" placeholder="Describe the role, responsibilities, and requirements..."></textarea></div>
+            
+            <button class="btn-primary" style="width:100%" onclick="submitJob()">Post Job ($49) →</button>
+            <p style="text-align: center; margin-top: 20px; font-size: 0.8rem; color: rgba(232,232,232,0.4);">Payment integration coming soon. Demo mode active.</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="script.js"></script>
+<script>
+    let currentLogoFile = null;
+    
+    // Image preview handler
+    document.getElementById('companyLogo').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        
+        currentLogoFile = file;
+        
+        // Preview
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const previewDiv = document.getElementById('logoPreview');
+            previewDiv.style.display = 'flex';
+            previewDiv.innerHTML = `
+                <img src="${event.target.result}" style="max-width:100%; max-height:100%;">
+                <div class="remove-image" onclick="removeLogo()">✕</div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    });
+    
+    function removeLogo() {
+        currentLogoFile = null;
+        document.getElementById('companyLogo').value = '';
+        document.getElementById('logoPreview').style.display = 'none';
+    }
+    
+    async function uploadLogo(userId, jobId) {
+        if (!currentLogoFile) return null;
+        
+        const fileExt = currentLogoFile.name.split('.').pop();
+        const fileName = `job_${userId}_${jobId}.${fileExt}`;
+        
+        const { data, error } = await supabaseClient.storage
+            .from('job-images')
+            .upload(fileName, currentLogoFile);
+        
+        if (error) {
+            console.error('Upload error:', error);
+            return null;
+        }
+        
+        const { data: { publicUrl } } = supabaseClient.storage.from('job-images').getPublicUrl(fileName);
+        return publicUrl;
+    }
+    
+    async function submitJob() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(!user) { window.location.href = 'login.html'; return; }
+        
+        const title = document.getElementById('jobTitle').value;
+        const company = document.getElementById('jobCompany').value;
+        
+        if(!title || !company) {
+            alert('Please fill in job title and company name');
+            return;
+        }
+        
+        const jobData = {
+            title: title,
+            company: company,
+            location: document.getElementById('jobLocation').value,
+            type: document.getElementById('jobType').value,
+            salary_range: document.getElementById('jobSalary').value,
+            description: document.getElementById('jobDesc').value,
+            posted_by: user.id
+        };
+        
+        const { data: job, error } = await supabaseClient.from('jobs').insert([jobData]).select();
+        
+        if (error) {
+            alert('Error posting job: ' + error.message);
+            return;
+        }
+        
+        // Upload logo if exists
+        if (currentLogoFile && job && job[0]) {
+            const logoUrl = await uploadLogo(user.id, job[0].id);
+            if (logoUrl) {
+                await supabaseClient.from('jobs').update({ logo_url: logoUrl }).eq('id', job[0].id);
+            }
+        }
+        
+        showNotification('Job posted successfully!');
+        setTimeout(() => window.location.href = 'jobs.html', 1500);
+    }
+    
+    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jobs - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item active"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="main">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
+        <h1>Job Marketplace</h1>
+        <div style="display: flex; gap: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="searchInput" placeholder="Search jobs..." style="padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,200,0.2); border-radius: 12px; color: white;">
+                <button class="btn-primary" onclick="searchJobs()">Search</button>
+            </div>
+            <button class="btn-primary" onclick="openPostModal()">+ Post a Job</button>
+        </div>
+    </div>
+    
+    <div id="jobsList" class="jobs-grid"></div>
+</div>
+
+<!-- Post Job Modal -->
+<div id="postModal" class="modal">
+    <div class="modal-content">
+        <h3>Post a Job</h3>
+        <div class="input-group"><input type="text" id="jobTitle" placeholder="Job Title"></div>
+        <div class="input-group"><input type="text" id="jobCompany" placeholder="Company Name"></div>
+        <div class="input-group"><input type="text" id="jobLocation" placeholder="Location (or Remote)"></div>
+        <div class="input-group"><select id="jobType"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Remote</option></select></div>
+        <div class="input-group"><textarea id="jobDesc" rows="4" placeholder="Job Description"></textarea></div>
+        <div class="input-group"><input type="text" id="jobSalary" placeholder="Salary Range (e.g., $50k-$70k)"></div>
+        <button class="btn-primary" style="width:100%" onclick="postJob()">Post Job ($49)</button>
+        <button class="btn-outline" style="width:100%; margin-top:10px" onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="script.js"></script>
+<script>
+    let allJobs = [];
+    
+    async function loadJobs() {
+        const { data: jobs } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
+        allJobs = jobs || [];
+        displayJobs(allJobs);
+    }
+    
+    function displayJobs(jobs) {
+        const container = document.getElementById('jobsList');
+        if(!jobs.length) { container.innerHTML = '<div class="card"><p>No jobs found. Be the first to post!</p></div>'; return; }
+        
+        container.innerHTML = jobs.map(job => `
+            <div class="job-card">
+                <div class="job-title">${escapeHtml(job.title)}</div>
+                <div class="job-company">${escapeHtml(job.company)}</div>
+                <div class="job-meta">
+                    <span><i class="fas fa-map-marker-alt"></i> ${escapeHtml(job.location || 'Remote')}</span>
+                    <span><i class="fas fa-clock"></i> ${escapeHtml(job.type || 'Full-time')}</span>
+                    <span><i class="fas fa-dollar-sign"></i> ${escapeHtml(job.salary_range || 'Negotiable')}</span>
+                </div>
+                <p>${escapeHtml(job.description?.substring(0, 200))}${job.description?.length > 200 ? '...' : ''}</p>
+                <button class="btn-sm" onclick="applyToJob('${job.id}')">Apply Now</button>
+            </div>
+        `).join('');
+    }
+    
+    function escapeHtml(text) {
+        if(!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function searchJobs() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allJobs.filter(j => j.title.toLowerCase().includes(query) || j.company.toLowerCase().includes(query));
+        displayJobs(filtered);
+    }
+    
+    async function applyToJob(jobId) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(!user) { alert('Please login first'); return; }
+        
+        await supabaseClient.from('applications').insert([{ job_id: jobId, user_id: user.id }]);
+        showNotification('Application submitted successfully!');
+    }
+    
+    async function postJob() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(!user) { alert('Please login first'); return; }
+        
+        const jobData = {
+            title: document.getElementById('jobTitle').value,
+            company: document.getElementById('jobCompany').value,
+            location: document.getElementById('jobLocation').value,
+            type: document.getElementById('jobType').value,
+            description: document.getElementById('jobDesc').value,
+            salary_range: document.getElementById('jobSalary').value,
+            posted_by: user.id
+        };
+        
+        if(!jobData.title || !jobData.company) {
+            alert('Please fill in job title and company');
+            return;
+        }
+        
+        await supabaseClient.from('jobs').insert([jobData]);
+        showNotification('Job posted successfully!');
+        closeModal();
+        loadJobs();
+// Add this button in the jobs.html header
+<div style="display: flex; gap: 10px;">
+    <button class="btn-primary" onclick="window.location.href='post-job.html'">Post Another Job +</button>
+</div>
+        
+        // Clear form
+        document.getElementById('jobTitle').value = '';
+        document.getElementById('jobCompany').value = '';
+        document.getElementById('jobLocation').value = '';
+        document.getElementById('jobDesc').value = '';
+        document.getElementById('jobSalary').value = '';
+    }
+    
+    function openPostModal() { document.getElementById('postModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('postModal').style.display = 'none'; }
+    
+    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+    
+    loadJobs();
+</script>
+</body>
+</html>

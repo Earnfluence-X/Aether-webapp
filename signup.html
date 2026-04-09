@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="nav"><div class="logo">AETHER</div></nav>
+
+<div class="auth-container">
+    <h2 style="margin-bottom: 8px;">Create your account</h2>
+    <p style="color: rgba(232,232,232,0.6); margin-bottom: 30px;">Join the professional ecosystem</p>
+    
+    <div id="errorMsg" style="background: rgba(255,51,102,0.2); border: 1px solid #FF3366; border-radius: 12px; padding: 12px; margin-bottom: 20px; color: #FF3366; display: none;"></div>
+    <div id="successMsg" style="background: rgba(0,255,200,0.2); border: 1px solid #00FFC8; border-radius: 12px; padding: 12px; margin-bottom: 20px; color: #00FFC8; display: none;"></div>
+    
+    <div class="input-group"><input type="text" id="fullName" placeholder="Full Name" autocomplete="name"></div>
+    <div class="input-group"><input type="email" id="email" placeholder="Email" autocomplete="email"></div>
+    <div class="input-group"><input type="password" id="password" placeholder="Password (min 6 characters)" autocomplete="new-password"></div>
+    
+    <button class="btn-primary" style="width:100%" onclick="signUp()">Create Account →</button>
+    <p style="text-align: center; margin-top: 20px; color: rgba(232,232,232,0.5);">Already have an account? <a href="login.html" style="color:#00FFC8">Sign in</a></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+    async function signUp() {
+        const fullName = document.getElementById('fullName').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('errorMsg');
+        const successDiv = document.getElementById('successMsg');
+        
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+        
+        if (!fullName || !email || !password) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Please fill in all fields';
+            return;
+        }
+        if (password.length < 6) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Password must be at least 6 characters';
+            return;
+        }
+        
+        try {
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, 
+                password,
+                options: {
+                    data: { full_name: fullName }
+                }
+            });
+            
+            if (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = error.message;
+            } else {
+                // Create profile in profiles table
+                if (data.user) {
+                    await supabaseClient.from('profiles').insert([{
+                        id: data.user.id,
+                        full_name: fullName,
+                        created_at: new Date().toISOString()
+                    }]);
+                }
+                
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Account created! Please check your email to verify and login.';
+                
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 3000);
+            }
+        } catch (err) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Network error. Please try again.';
+        }
+    }
+</script>
+</body>
+</html>

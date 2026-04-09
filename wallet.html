@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item active"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="main">
+    <div style="max-width: 800px; margin: 0 auto;">
+        <div class="card" style="text-align: center; margin-bottom: 30px;">
+            <h2>Your Balance</h2>
+            <div class="value" id="balance" style="font-size: 3rem; margin: 20px 0;">$0.00</div>
+            <button class="btn-primary" onclick="addFunds()">➕ Add Funds</button>
+        </div>
+        
+        <div class="card">
+            <h3>Transaction History</h3>
+            <div id="transactionsList" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="script.js"></script>
+<script>
+    async function loadWallet() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = 'login.html'; return; }
+        
+        const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
+        document.getElementById('balance').innerHTML = `$${balance.toFixed(2)}`;
+        
+        const container = document.getElementById('transactionsList');
+        if (!transactions?.length) {
+            container.innerHTML = '<p style="color: rgba(232,232,232,0.5); text-align: center;">No transactions yet</p>';
+            return;
+        }
+        
+        container.innerHTML = transactions.map(t => `
+            <div style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div>${t.description || 'Transaction'}</div>
+                <div style="color: ${t.amount > 0 ? '#00FFC8' : '#FF3366'}">${t.amount > 0 ? '+' : ''}$${Math.abs(t.amount).toFixed(2)}</div>
+                <div style="font-size:0.7rem; color: rgba(232,232,232,0.4);">${formatDate(t.created_at)}</div>
+            </div>
+        `).join('');
+    }
+    
+    function addFunds() {
+        // DEMO MODE - Real payment integration coming after deployment
+        showNotification('💳 Demo Mode: Real payments with Paystack/Flutterwave coming soon!', 'info');
+        
+        // For testing purposes only - add demo funds
+        // Uncomment the line below to enable demo fund addition
+        // addDemoFunds();
+    }
+    
+    // Optional: For testing only - remove in production
+    async function addDemoFunds() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return;
+        
+        await supabaseClient.from('transactions').insert([{
+            user_id: user.id,
+            amount: 100,
+            type: 'demo_deposit',
+            description: 'Demo deposit (testing)'
+        }]);
+        
+        showNotification('$100 added for demo testing');
+        loadWallet();
+    }
+    
+    window.addFunds = addFunds;
+    window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
+    
+    loadWallet();
+</script>
+</body>
+</html>

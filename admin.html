@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="admin.html" class="nav-item active"><i class="fas fa-shield-alt"></i> Admin</a>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="main">
+    <h1>Admin Panel</h1>
+    <p style="color: rgba(232,232,232,0.6); margin-bottom: 30px;">Manage users, jobs, and platform activity</p>
+    
+    <div class="stats-grid">
+        <div class="stat-card"><div class="value" id="userCount">0</div><div>Total Users</div></div>
+        <div class="stat-card"><div class="value" id="jobCount">0</div><div>Total Jobs</div></div>
+        <div class="stat-card"><div class="value" id="productCount">0</div><div>Products</div></div>
+        <div class="stat-card"><div class="value" id="appCount">0</div><div>Applications</div></div>
+    </div>
+    
+    <div class="card" style="margin-bottom: 30px;">
+        <h3>Recent Users</h3>
+        <div style="overflow-x: auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Verified</th><th>Joined</th></tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3>Recent Jobs</h3>
+        <div style="overflow-x: auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Title</th><th>Company</th><th>Posted</th><th>Action</th></tr>
+                </thead>
+                <tbody id="jobsTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="script.js"></script>
+<script>
+    let currentUser = null;
+    
+    async function loadAdminData() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(!user) { window.location.href = 'login.html'; return; }
+        currentUser = user;
+        
+        // Get all data
+        const { data: profiles } = await supabaseClient.from('profiles').select('*');
+        const { data: jobs } = await supabaseClient.from('jobs').select('*');
+        const { data: products } = await supabaseClient.from('products').select('*');
+        const { data: applications } = await supabaseClient.from('applications').select('*');
+        
+        document.getElementById('userCount').innerHTML = profiles?.length || 0;
+        document.getElementById('jobCount').innerHTML = jobs?.length || 0;
+        document.getElementById('productCount').innerHTML = products?.length || 0;
+        document.getElementById('appCount').innerHTML = applications?.length || 0;
+        
+        // Users table
+        const usersTable = document.getElementById('usersTable');
+        usersTable.innerHTML = profiles?.slice(0, 10).map(p => `
+            <tr>
+                <td>${p.full_name || 'N/A'}</td>
+                <td>${p.email || p.id.substring(0, 8)}...</td>
+                <td>${p.verified ? '✅' : '❌'}</td>
+                <td>${formatDate(p.created_at)}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="4">No users found</td></tr>';
+        
+        // Jobs table
+        const jobsTable = document.getElementById('jobsTable');
+        jobsTable.innerHTML = jobs?.slice(0, 10).map(job => `
+            <tr>
+                <td>${job.title}</td>
+                <td>${job.company}</td>
+                <td>${formatDate(job.created_at)}</td>
+                <td><button class="btn-sm" onclick="deleteJob('${job.id}')">Delete</button></td>
+            </tr>
+        `).join('') || '<tr><td colspan="4">No jobs found</td></tr>';
+    }
+    
+    async function deleteJob(jobId) {
+        if(confirm('Are you sure you want to delete this job?')) {
+            await supabaseClient.from('jobs').delete().eq('id', jobId);
+            showNotification('Job deleted');
+            loadAdminData();
+        }
+    }
+    
+    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+    
+    loadAdminData();
+</script>
+</body>
+</html>
