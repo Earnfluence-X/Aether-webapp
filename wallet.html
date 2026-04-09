@@ -37,9 +37,35 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="script.js"></script>
 <script>
+    // Supabase Config (inlined)
+    const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const AVATAR_BUCKET = 'avatars';
+    const JOB_BUCKET = 'job-images';
+    const PRODUCT_BUCKET = 'product-images';
+    
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString();
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = type === 'success' ? '#00FFC8' : '#FF3366';
+        notification.style.color = type === 'success' ? '#0A0A0F' : '#FFFFFF';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
     async function loadWallet() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { window.location.href = 'login.html'; return; }
@@ -64,28 +90,7 @@
     }
     
     function addFunds() {
-        // DEMO MODE - Real payment integration coming after deployment
         showNotification('💳 Demo Mode: Real payments with Paystack/Flutterwave coming soon!', 'info');
-        
-        // For testing purposes only - add demo funds
-        // Uncomment the line below to enable demo fund addition
-        // addDemoFunds();
-    }
-    
-    // Optional: For testing only - remove in production
-    async function addDemoFunds() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return;
-        
-        await supabaseClient.from('transactions').insert([{
-            user_id: user.id,
-            amount: 100,
-            type: 'demo_deposit',
-            description: 'Demo deposit (testing)'
-        }]);
-        
-        showNotification('$100 added for demo testing');
-        loadWallet();
     }
     
     window.addFunds = addFunds;
