@@ -7,33 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .product-image-preview {
-            width: 100%;
-            height: 150px;
-            background: rgba(255,255,255,0.05);
-            border: 1px dashed rgba(0,255,200,0.3);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-        .product-image-preview img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-        .product-card img {
-            width: 100%;
-            height: 180px;
-            object-fit: cover;
-            border-radius: 12px;
-            margin-bottom: 15px;
-        }
-    </style>
 </head>
 <body>
 
@@ -44,81 +17,108 @@
     <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
     <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
     <a href="products.html" class="nav-item active"><i class="fas fa-store"></i> Marketplace</a>
+    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
 <div class="main">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
         <h1>Digital Marketplace</h1>
         <button class="btn-primary" onclick="openSellModal()">+ Sell Product</button>
+    </div>
+    
+    <div class="search-bar">
+        <input type="text" id="searchProducts" placeholder="Search products..." onkeyup="searchProducts()">
+        <select id="categoryFilter" onchange="searchProducts()">
+            <option value="all">All Categories</option>
+            <option value="Digital Product">Digital Product</option>
+            <option value="Service">Service</option>
+            <option value="Course">Course</option>
+            <option value="Template">Template</option>
+        </select>
     </div>
     
     <div id="productsGrid" class="products-grid"></div>
 </div>
 
-<!-- Sell Product Modal -->
 <div id="sellModal" class="modal">
     <div class="modal-content">
         <h3>Sell a Product</h3>
         <div class="input-group"><input type="text" id="productTitle" placeholder="Product Title"></div>
         <div class="input-group"><textarea id="productDesc" rows="3" placeholder="Description"></textarea></div>
         <div class="input-group"><input type="file" id="productImage" accept="image/jpeg,image/png,image/gif"></div>
-        <div id="productImagePreview" class="product-image-preview" style="display: none;"></div>
+        <div id="productImagePreview" class="image-preview" style="display: none;"></div>
         <div class="input-group"><input type="number" id="productPrice" placeholder="Price ($)"></div>
         <div class="input-group"><select id="productType"><option>Digital Product</option><option>Service</option><option>Course</option><option>Template</option></select></div>
         <button class="btn-primary" style="width:100%" onclick="sellProduct()">List Product</button>
-        <button class="btn-outline" style="width:100%; margin-top:10px" onclick="closeModal()">Cancel</button>
+        <button class="btn-outline" style="width:100%; margin-top:10px" onclick="closeSellModal()">Cancel</button>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="script.js"></script>
 <script>
+    // Supabase Config (inlined)
+    const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const AVATAR_BUCKET = 'avatars';
+    const JOB_BUCKET = 'job-images';
+    const PRODUCT_BUCKET = 'product-images';
+    
+    let allProducts = [];
     let currentProductImage = null;
     
-    // Image preview
+    function escapeHtml(text) {
+        if(!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = type === 'success' ? '#00FFC8' : '#FF3366';
+        notification.style.color = type === 'success' ? '#0A0A0F' : '#FFFFFF';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
     document.getElementById('productImage').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
         currentProductImage = file;
-        
         const reader = new FileReader();
         reader.onload = (event) => {
-            const previewDiv = document.getElementById('productImagePreview');
-            previewDiv.style.display = 'flex';
-            previewDiv.innerHTML = `<img src="${event.target.result}" style="max-width:100%; max-height:100%;">`;
+            const preview = document.getElementById('productImagePreview');
+            preview.style.display = 'flex';
+            preview.innerHTML = `<img src="${event.target.result}" style="max-width:100%; max-height:100%;">`;
         };
         reader.readAsDataURL(file);
     });
     
-    async function uploadProductImage(userId, productId) {
-        if (!currentProductImage) return null;
-        
-        const fileExt = currentProductImage.name.split('.').pop();
-        const fileName = `product_${userId}_${productId}.${fileExt}`;
-        
-        const { error } = await supabaseClient.storage
-            .from('product-images')
-            .upload(fileName, currentProductImage);
-        
-        if (error) return null;
-        
-        const { data: { publicUrl } } = supabaseClient.storage.from('product-images').getPublicUrl(fileName);
-        return publicUrl;
-    }
-    
     async function loadProducts() {
         const { data: products } = await supabaseClient.from('products').select('*, profiles(full_name)').order('created_at', { ascending: false });
+        allProducts = products || [];
+        displayProducts(allProducts);
+    }
+    
+    function displayProducts(products) {
         const container = document.getElementById('productsGrid');
-        if(!products?.length) { container.innerHTML = '<p class="text-muted">No products yet. Be the first to sell!</p>'; return; }
+        if(!products.length) { container.innerHTML = '<div class="card"><p>No products yet. Be the first to sell!</p></div>'; return; }
         
         container.innerHTML = products.map(p => `
             <div class="product-card">
-                ${p.image_url ? `<img src="${p.image_url}" alt="${p.title}">` : '<div style="height:180px; background:linear-gradient(135deg,#00FFC820,#6464FF20); border-radius:12px; margin-bottom:15px; display:flex; align-items:center; justify-content:center;">🖼️ No Image</div>'}
+                ${p.image_url ? `<img src="${p.image_url}" alt="${escapeHtml(p.title)}">` : '<div style="height:180px; background:linear-gradient(135deg,#00FFC820,#6464FF20); border-radius:12px; margin-bottom:15px; display:flex; align-items:center; justify-content:center;">🖼️ No Image</div>'}
                 <h3>${escapeHtml(p.title)}</h3>
                 <p style="color: rgba(232,232,232,0.6); font-size: 0.85rem;">${escapeHtml(p.description?.substring(0, 80))}${p.description?.length > 80 ? '...' : ''}</p>
-                <div class="product-price">$${p.price}</div>
+                <div class="product-price">$${parseFloat(p.price).toFixed(2)}</div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size:0.7rem; color: rgba(232,232,232,0.4);">by ${p.profiles?.full_name || 'Anonymous'}</span>
                     <button class="btn-sm" onclick="buyProduct('${p.id}', ${p.price})">Buy Now</button>
@@ -127,9 +127,26 @@
         `).join('');
     }
     
+    function searchProducts() {
+        const term = document.getElementById('searchProducts').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        let filtered = allProducts;
+        if (term) filtered = filtered.filter(p => p.title.toLowerCase().includes(term));
+        if (category !== 'all') filtered = filtered.filter(p => p.type === category);
+        displayProducts(filtered);
+    }
+    
+    async function uploadProductImage(userId, productId) {
+        if (!currentProductImage) return null;
+        const fileName = `product_${userId}_${productId}_${Date.now()}.${currentProductImage.name.split('.').pop()}`;
+        await supabaseClient.storage.from(PRODUCT_BUCKET).upload(fileName, currentProductImage);
+        const { data } = supabaseClient.storage.from(PRODUCT_BUCKET).getPublicUrl(fileName);
+        return data.publicUrl;
+    }
+    
     async function sellProduct() {
         const { data: { user } } = await supabaseClient.auth.getUser();
-        if(!user) { alert('Please login first'); return; }
+        if (!user) { alert('Please login first'); return; }
         
         const title = document.getElementById('productTitle').value;
         const price = parseFloat(document.getElementById('productPrice').value);
@@ -152,7 +169,6 @@
             return;
         }
         
-        // Upload image if exists
         if (currentProductImage && product && product[0]) {
             const imageUrl = await uploadProductImage(user.id, product[0].id);
             if (imageUrl) {
@@ -161,10 +177,9 @@
         }
         
         showNotification('Product listed successfully!');
-        closeModal();
+        closeSellModal();
         loadProducts();
         
-        // Clear form
         document.getElementById('productTitle').value = '';
         document.getElementById('productDesc').value = '';
         document.getElementById('productPrice').value = '';
@@ -173,25 +188,30 @@
         currentProductImage = null;
     }
     
-    function escapeHtml(text) {
-        if(!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    async function buyProduct(productId, price) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { alert('Please login first'); return; }
+        
+        const { data: transactions } = await supabaseClient.from('transactions').select('amount').eq('user_id', user.id);
+        const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
+        
+        if (balance < price) { alert('Insufficient balance'); return; }
+        
+        await supabaseClient.from('transactions').insert([{ user_id: user.id, amount: -price, type: 'purchase' }]);
+        await supabaseClient.from('transactions').insert([{ user_id: user.id, amount: price * 0.95, type: 'sale' }]);
+        showNotification('Purchase successful!');
+        loadProducts();
     }
     
-    function buyProduct(productId, price) {
-        showNotification(`Demo: Purchase of $${price} would be processed here. Payment integration coming soon!`);
-    }
+    function openSellModal() { document.getElementById('sellModal').style.display = 'flex'; }
+    function closeSellModal() { document.getElementById('sellModal').style.display = 'none'; }
     
-    function openSellModal() { 
-        document.getElementById('sellModal').style.display = 'flex';
-        document.getElementById('productImagePreview').style.display = 'none';
-        currentProductImage = null;
-    }
-    function closeModal() { document.getElementById('sellModal').style.display = 'none'; }
-    
-    async function logout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+    window.searchProducts = searchProducts;
+    window.sellProduct = sellProduct;
+    window.buyProduct = buyProduct;
+    window.openSellModal = openSellModal;
+    window.closeSellModal = closeSellModal;
+    window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
     
     loadProducts();
 </script>
