@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jobs - Aether</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -33,15 +33,9 @@
         </div>
     </div>
     
-    <!-- Post Another Job Button (MOVED TO CORRECT PLACE) -->
-    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-        <button class="btn-primary" onclick="window.location.href='postjob.html'">Post Another Job +</button>
-    </div>
-    
     <div id="jobsList" class="jobs-grid"></div>
 </div>
 
-<!-- Post Job Modal -->
 <div id="postModal" class="modal">
     <div class="modal-content">
         <h3>Post a Job</h3>
@@ -57,10 +51,38 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js"></script>
-<script src="script.js"></script>
 <script>
+    // Supabase Config (inlined)
+    const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const AVATAR_BUCKET = 'avatars';
+    const JOB_BUCKET = 'job-images';
+    const PRODUCT_BUCKET = 'product-images';
+    
     let allJobs = [];
+    
+    function escapeHtml(text) {
+        if(!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = type === 'success' ? '#00FFC8' : '#FF3366';
+        notification.style.color = type === 'success' ? '#0A0A0F' : '#FFFFFF';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
     
     async function loadJobs() {
         const { data: jobs } = await supabaseClient.from('jobs').select('*').order('created_at', { ascending: false });
@@ -85,13 +107,6 @@
                 <button class="btn-sm" onclick="applyToJob('${job.id}')">Apply Now</button>
             </div>
         `).join('');
-    }
-    
-    function escapeHtml(text) {
-        if(!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
     
     function searchJobs() {
@@ -132,7 +147,6 @@
         closeModal();
         loadJobs();
         
-        // Clear form
         document.getElementById('jobTitle').value = '';
         document.getElementById('jobCompany').value = '';
         document.getElementById('jobLocation').value = '';
@@ -144,6 +158,11 @@
     function closeModal() { document.getElementById('postModal').style.display = 'none'; }
     
     window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
+    window.searchJobs = searchJobs;
+    window.applyToJob = applyToJob;
+    window.postJob = postJob;
+    window.openPostModal = openPostModal;
+    window.closeModal = closeModal;
     
     loadJobs();
 </script>
