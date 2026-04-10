@@ -10,8 +10,13 @@
 </head>
 <body>
 
-<!-- Desktop Sidebar -->
-<div class="sidebar">
+<!-- Menu Button (Three lines) -->
+<div class="menu-btn" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar" class="sidebar">
     <div class="logo">AETHER</div>
     <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
     <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
@@ -24,32 +29,10 @@
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
-<!-- Mobile Sidebar -->
-<div id="mobileSidebar" class="sidebar-mobile">
-    <div class="logo">AETHER</div>
-    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
-    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
-    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
-    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
-    <div id="mobileAdminNavItem" style="display: none;">
-        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
-    </div>
-    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
-</div>
-
 <!-- Overlay -->
-<div id="menuOverlay" class="menu-overlay" onclick="closeMobileMenu()"></div>
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <div class="main">
-    <!-- Mobile menu button -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
-            <i class="fas fa-bars"></i>
-        </button>
-        <div style="width: 40px;"></div>
-    </div>
-    
     <div style="max-width: 800px; margin: 0 auto;">
         <div class="card" style="text-align: center; margin-bottom: 30px;">
             <h2>Your Balance</h2>
@@ -66,13 +49,24 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    // Supabase Config (inlined)
     const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const AVATAR_BUCKET = 'avatars';
+    const AVATAR_BUCKET = 'avartars';
     const JOB_BUCKET = 'job-images';
     const PRODUCT_BUCKET = 'product-images';
+    
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
     
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
@@ -98,10 +92,8 @@
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { window.location.href = 'login.html'; return; }
         
-        // Check if admin
         if (user.email === 'earnfluencex@gmail.com') {
             document.getElementById('adminNavItem').style.display = 'block';
-            document.getElementById('mobileAdminNavItem').style.display = 'block';
         }
         
         const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
@@ -127,20 +119,10 @@
         showNotification('💳 Demo Mode: Real payments with Paystack/Flutterwave coming soon!', 'info');
     }
     
-    function toggleMobileMenu() {
-        document.getElementById('mobileSidebar').classList.toggle('open');
-        document.getElementById('menuOverlay').classList.toggle('active');
-        document.body.style.overflow = 'hidden';
-    }
-    
-    function closeMobileMenu() {
-        document.getElementById('mobileSidebar').classList.remove('open');
-        document.getElementById('menuOverlay').classList.remove('active');
-        document.body.style.overflow = '';
-    }
-    
     window.addFunds = addFunds;
     window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
     
     loadWallet();
 </script>
