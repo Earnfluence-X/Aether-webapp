@@ -180,7 +180,15 @@
             document.getElementById('adminNavItem').style.display = 'block';
         }
         
-        const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+        // Fetch profile
+        const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+        
+        if (error) {
+            console.error('Error loading profile:', error);
+            showNotification('Error loading profile', 'error');
+            return;
+        }
+        
         if(profile) {
             document.getElementById('fullName').value = profile.full_name || '';
             document.getElementById('headline').value = profile.headline || '';
@@ -214,17 +222,50 @@
     }
     
     async function saveProfile() {
-        await supabaseClient.from('profiles').upsert({
-            id: currentUser.id,
-            full_name: document.getElementById('fullName').value,
-            headline: document.getElementById('headline').value,
-            location: document.getElementById('location').value,
-            bio: document.getElementById('bio').value,
-            skills: userSkills,
-            avatar_url: currentAvatarUrl,
-            updated_at: new Date()
-        });
-        showNotification('Profile saved successfully!');
+        const fullName = document.getElementById('fullName').value;
+        const headline = document.getElementById('headline').value;
+        const location = document.getElementById('location').value;
+        const bio = document.getElementById('bio').value;
+        
+        // First check if profile exists
+        const { data: existingProfile } = await supabaseClient.from('profiles').select('id').eq('id', currentUser.id).single();
+        
+        let result;
+        if (existingProfile) {
+            // Update existing profile
+            result = await supabaseClient.from('profiles')
+                .update({
+                    full_name: fullName,
+                    headline: headline,
+                    location: location,
+                    bio: bio,
+                    skills: userSkills,
+                    avatar_url: currentAvatarUrl,
+                    updated_at: new Date()
+                })
+                .eq('id', currentUser.id);
+        } else {
+            // Insert new profile
+            result = await supabaseClient.from('profiles')
+                .insert({
+                    id: currentUser.id,
+                    full_name: fullName,
+                    headline: headline,
+                    location: location,
+                    bio: bio,
+                    skills: userSkills,
+                    avatar_url: currentAvatarUrl,
+                    created_at: new Date()
+                });
+        }
+        
+        if (result.error) {
+            showNotification('Error saving profile: ' + result.error.message, 'error');
+        } else {
+            showNotification('Profile saved successfully!');
+            // Reload profile to confirm
+            await loadProfile();
+        }
     }
     
     function startVerification() {
@@ -238,6 +279,10 @@
     
     window.toggleSidebar = toggleSidebar;
     window.closeSidebar = closeSidebar;
+    window.addSkill = addSkill;
+    window.removeSkill = removeSkill;
+    window.saveProfile = saveProfile;
+    window.startVerification = startVerification;
     
     loadProfile();
 </script>
