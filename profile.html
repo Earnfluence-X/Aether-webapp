@@ -74,7 +74,7 @@
     const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const AVATAR_BUCKET = 'avatars';
+    const AVATAR_BUCKET = 'avartars';
     const JOB_BUCKET = 'job-images';
     const PRODUCT_BUCKET = 'product-images';
     
@@ -117,4 +117,129 @@
     
     function displayAvatar(avatarPath) {
         const avatarIcon = document.getElementById('avatarIcon');
-       
+        const avatarImage = document.getElementById('avatarImage');
+        
+        if (avatarPath) {
+            const url = getPublicUrl(AVATAR_BUCKET, avatarPath);
+            if (url) {
+                avatarImage.src = url;
+                avatarImage.style.display = 'block';
+                avatarIcon.style.display = 'none';
+            }
+        } else {
+            avatarImage.style.display = 'none';
+            avatarIcon.style.display = 'flex';
+        }
+    }
+    
+    async function uploadAvatar(file) {
+        const uploadStatus = document.getElementById('uploadStatus');
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}_${Date.now()}.${fileExt}`;
+        
+        uploadStatus.innerHTML = 'Uploading...';
+        uploadStatus.style.color = '#00FFC8';
+        
+        const { error } = await supabaseClient.storage
+            .from(AVATAR_BUCKET)
+            .upload(fileName, file);
+        
+        if (error) {
+            uploadStatus.innerHTML = 'Upload failed: ' + error.message;
+            uploadStatus.style.color = '#FF3366';
+            return null;
+        }
+        
+        uploadStatus.innerHTML = 'Upload complete!';
+        setTimeout(() => uploadStatus.innerHTML = '', 2000);
+        return fileName;
+    }
+    
+    document.getElementById('avatarInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+        if (file.size > 5 * 1024 * 1024) { alert('Image must be less than 5MB'); return; }
+        
+        const avatarPath = await uploadAvatar(file);
+        if (avatarPath) {
+            currentAvatarUrl = avatarPath;
+            displayAvatar(avatarPath);
+            await supabaseClient.from('profiles').update({ avatar_url: avatarPath }).eq('id', currentUser.id);
+            showNotification('Avatar updated successfully!');
+        }
+    });
+    
+    async function loadProfile() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if(!user) { window.location.href = 'login.html'; return; }
+        currentUser = user;
+        
+        const isAdmin = user.email === 'earnfluencex@gmail.com';
+        if (isAdmin) {
+            document.getElementById('adminNavItem').style.display = 'block';
+        }
+        
+        const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+        if(profile) {
+            document.getElementById('fullName').value = profile.full_name || '';
+            document.getElementById('headline').value = profile.headline || '';
+            document.getElementById('location').value = profile.location || '';
+            document.getElementById('bio').value = profile.bio || '';
+            userSkills = profile.skills || [];
+            document.getElementById('verifyStatus').innerHTML = profile.verified ? '✓ Verified' : 'Not Verified';
+            currentAvatarUrl = profile.avatar_url;
+            displayAvatar(currentAvatarUrl);
+            renderSkills();
+        }
+    }
+    
+    function renderSkills() {
+        const container = document.getElementById('skillsList');
+        container.innerHTML = userSkills.map((skill, i) => `<div class="skill-tag">${skill} <i class="fas fa-times" onclick="removeSkill(${i})"></i></div>`).join('');
+    }
+    
+    function addSkill() {
+        const newSkill = document.getElementById('newSkill').value.trim();
+        if(newSkill && !userSkills.includes(newSkill)) {
+            userSkills.push(newSkill);
+            renderSkills();
+            document.getElementById('newSkill').value = '';
+        }
+    }
+    
+    function removeSkill(index) {
+        userSkills.splice(index, 1);
+        renderSkills();
+    }
+    
+    async function saveProfile() {
+        await supabaseClient.from('profiles').upsert({
+            id: currentUser.id,
+            full_name: document.getElementById('fullName').value,
+            headline: document.getElementById('headline').value,
+            location: document.getElementById('location').value,
+            bio: document.getElementById('bio').value,
+            skills: userSkills,
+            avatar_url: currentAvatarUrl,
+            updated_at: new Date()
+        });
+        showNotification('Profile saved successfully!');
+    }
+    
+    function startVerification() {
+        alert('Verification costs $10. Payment integration coming soon!');
+    }
+    
+    window.logout = async function() {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    };
+    
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+    
+    loadProfile();
+</script>
+</body>
+</html>
