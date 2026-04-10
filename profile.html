@@ -10,6 +10,7 @@
 </head>
 <body>
 
+<!-- Desktop Sidebar -->
 <div class="sidebar">
     <div class="logo">AETHER</div>
     <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
@@ -17,11 +18,38 @@
     <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
     <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
     <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
-    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    <div id="adminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
+<!-- Mobile Sidebar -->
+<div id="mobileSidebar" class="sidebar-mobile">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <div id="mobileAdminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="closeMobileMenu()"></div>
+
 <div class="main">
+    <!-- Mobile menu button -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div style="width: 40px;"></div>
+    </div>
+    
     <div style="max-width: 800px; margin: 0 auto;">
         <h1>Your Profile</h1>
         <p style="color: rgba(232,232,232,0.6); margin-bottom: 30px;">Stand out to employers and clients</p>
@@ -116,9 +144,7 @@
         uploadStatus.innerHTML = 'Uploading...';
         uploadStatus.style.color = '#00FFC8';
         
-        const { error } = await supabaseClient.storage
-            .from(AVATAR_BUCKET)
-            .upload(fileName, file);
+        const { error } = await supabaseClient.storage.from(AVATAR_BUCKET).upload(fileName, file);
         
         if (error) {
             uploadStatus.innerHTML = 'Upload failed: ' + error.message;
@@ -128,23 +154,14 @@
         
         uploadStatus.innerHTML = 'Upload complete!';
         setTimeout(() => uploadStatus.innerHTML = '', 2000);
-        
         return fileName;
     }
     
     document.getElementById('avatarInput').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-        
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Image must be less than 5MB');
-            return;
-        }
+        if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+        if (file.size > 5 * 1024 * 1024) { alert('Image must be less than 5MB'); return; }
         
         const avatarPath = await uploadAvatar(file);
         if (avatarPath) {
@@ -159,6 +176,13 @@
         const { data: { user } } = await supabaseClient.auth.getUser();
         if(!user) { window.location.href = 'login.html'; return; }
         currentUser = user;
+        
+        // Check if admin
+        const isAdmin = user.email === 'earnfluencex@gmail.com';
+        if (isAdmin) {
+            document.getElementById('adminNavItem').style.display = 'block';
+            document.getElementById('mobileAdminNavItem').style.display = 'block';
+        }
         
         const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
         if(profile) {
@@ -194,22 +218,16 @@
     }
     
     async function saveProfile() {
-        const fullName = document.getElementById('fullName').value;
-        const headline = document.getElementById('headline').value;
-        const location = document.getElementById('location').value;
-        const bio = document.getElementById('bio').value;
-        
         await supabaseClient.from('profiles').upsert({
             id: currentUser.id,
-            full_name: fullName,
-            headline: headline,
-            location: location,
-            bio: bio,
+            full_name: document.getElementById('fullName').value,
+            headline: document.getElementById('headline').value,
+            location: document.getElementById('location').value,
+            bio: document.getElementById('bio').value,
             skills: userSkills,
             avatar_url: currentAvatarUrl,
             updated_at: new Date()
         });
-        
         showNotification('Profile saved successfully!');
     }
     
@@ -217,10 +235,19 @@
         alert('Verification costs $10. Payment integration coming soon!');
     }
     
-    window.logout = async function() {
-        await supabaseClient.auth.signOut();
-        window.location.href = 'index.html';
-    };
+    function toggleMobileMenu() {
+        document.getElementById('mobileSidebar').classList.toggle('open');
+        document.getElementById('menuOverlay').classList.toggle('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileMenu() {
+        document.getElementById('mobileSidebar').classList.remove('open');
+        document.getElementById('menuOverlay').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
     
     loadProfile();
 </script>
