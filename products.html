@@ -98,4 +98,170 @@
         return div.innerHTML;
     }
     
-    function show
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.background = type === 'success' ? '#00FFC8' : '#FF3366';
+        notification.style.color = type === 'success' ? '#0A0A0F' : '#FFFFFF';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '50px';
+        notification.style.zIndex = '2000';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+    
+    document.getElementById('productImage').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        currentProductImage = file;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const preview = document.getElementById('productImagePreview');
+            preview.style.display = 'flex';
+            preview.innerHTML = `<img src="${event.target.result}" style="max-width:100%; max-height:100%;">`;
+        };
+        reader.readAsDataURL(file);
+    });
+    
+    async function loadProducts() {
+        const { data: products } = await supabaseClient.from('products').select('*, profiles(full_name)').order('created_at', { ascending: false });
+        allProducts = products || [];
+        displayProducts(allProducts);
+    }
+    
+    function displayProducts(products) {
+        const container = document.getElementById('productsGrid');
+        if(!products.length) { container.innerHTML = '<div class="card"><p>No products yet. Be the first to sell!</p></div>'; return; }
+        
+        container.innerHTML = products.map(p => `
+            <div class="product-card">
+                ${p.image_url ? `<img src="${p.image_url}" alt="${escapeHtml(p.title)}">` : '<div style="height:180px; background:linear-gradient(135deg,#00FFC820,#6464FF20); border-radius:12px; margin-bottom:15px; display:flex; align-items:center; justify-content:center;">🖼️ No Image</div>'}
+                <h3>${escapeHtml(p.title)}</h3>
+                <p style="color: rgba(232,232,232,0.6); font-size: 0.85rem;">${escapeHtml(p.description?.substring(0, 80))}${p.description?.length > 80 ? '...' : ''}</p>
+                <div class="product-price">$${parseFloat(p.price).toFixed(2)}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size:0.7rem; color: rgba(232,232,232,0.4);">by ${p.profiles?.full_name || 'Anonymous'}</span>
+                    <button class="btn-sm" onclick="buyProduct('${p.id}', ${p.price})">Buy Now</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function searchProducts() {
+        const term = document.getElementById('searchProducts').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        let filtered = allProducts;
+        if (term) filtered = filtered.filter(p => p.title.toLowerCase().includes(term));
+        if (category !== 'all') filtered = filtered.filter(p => p.type === category);
+        displayProducts(filtered);
+    }
+    
+    async function uploadProductImage(userId, productId) {
+        if (!currentProductImage) return null;
+        const fileName = `product_${userId}_${productId}_${Date.now()}.${currentProductImage.name.split('.').pop()}`;
+        await supabaseClient.storage.from(PRODUCT_BUCKET).upload(fileName, currentProductImage);
+        const { data } = supabaseClient.storage.from(PRODUCT_BUCKET).getPublicUrl(fileName);
+        return data.publicUrl;
+    }
+    
+    async function sellProduct() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { alert('Please login first'); return; }
+        
+        const title = document.getElementById('productTitle').value;
+        const price = parseFloat(document.getElementById('productPrice').value);
+        
+        if(!title || !price) {
+            alert('Please fill in title and price');
+            return;
+        }
+        
+        const { data: product, error } = await supabaseClient.from('products').insert([{
+            seller_id: user.id,
+            title: title,
+            description: document.getElementById('productDesc').value,
+            price: price,
+            type: document.getElementById('productType').value
+        }]).select();
+        
+        if (error) {
+            alert('Error: ' + error.message);
+            return;
+        }
+        
+        if (currentProductImage && product && product[0]) {
+            const imageUrl = await uploadProductImage(user.id, product[0].id);
+            if (imageUrl) {
+                await supabaseClient.from('products').update({ image_url: imageUrl }).eq('id', product[0].id);
+            }
+        }
+        
+        showNotification('Product listed successfully!');
+        closeSellModal();
+        loadProducts();
+        
+        document.getElementById('productTitle').value = '';
+        document.getElementById('productDesc').value = '';
+        document.getElementById('productPrice').value = '';
+        document.getElementById('productImage').value = '';
+        document.getElementById('productImagePreview').style.display = 'none';
+        currentProductImage = null;
+    }
+    
+    async function buyProduct(productId, price) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { alert('Please login first'); return; }
+        
+        const { data: transactions } = await supabaseClient.from('transactions').select('amount').eq('user_id', user.id);
+        const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
+        
+        if (balance < price) { alert('Insufficient balance'); return; }
+        
+        await supabaseClient.from('transactions').insert([{ user_id: user.id, amount: -price, type: 'purchase', description: `Purchased: ${title}` }]);
+        await supabaseClient.from('transactions').insert([{ user_id: user.id, amount: price * 0.95, type: 'sale', description: `Sold: ${title}` }]);
+        showNotification('Purchase successful!');
+        loadProducts();
+        loadWalletBalance();
+    }
+    
+    async function loadWalletBalance() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            const { data: transactions } = await supabaseClient.from('transactions').select('amount').eq('user_id', user.id);
+            const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
+            const walletElement = document.getElementById('walletBalance');
+            if (walletElement) walletElement.innerHTML = `$${balance.toFixed(2)}`;
+        }
+    }
+    
+    async function loadUserForAdmin() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user && user.email === 'earnfluencex@gmail.com') {
+            document.getElementById('adminNavItem').style.display = 'block';
+        }
+    }
+    
+    function openSellModal() { 
+        document.getElementById('sellModal').style.display = 'flex';
+        document.getElementById('productImagePreview').style.display = 'none';
+        currentProductImage = null;
+    }
+    function closeSellModal() { document.getElementById('sellModal').style.display = 'none'; }
+    
+    window.searchProducts = searchProducts;
+    window.sellProduct = sellProduct;
+    window.buyProduct = buyProduct;
+    window.openSellModal = openSellModal;
+    window.closeSellModal = closeSellModal;
+    window.logout = async function() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; };
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+    
+    loadUserForAdmin();
+    loadProducts();
+</script>
+</body>
+</html>
