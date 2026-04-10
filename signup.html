@@ -132,12 +132,18 @@
                 errorDiv.style.display = 'block';
                 errorDiv.textContent = error.message;
             } else {
+                // ✅ THIS IS THE FIX - Create profile in profiles table
                 if (data.user) {
-                    await supabaseClient.from('profiles').insert([{
+                    const { error: profileError } = await supabaseClient.from('profiles').insert([{
                         id: data.user.id,
                         full_name: fullName,
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
                     }]);
+                    
+                    if (profileError) {
+                        console.error('Profile creation error:', profileError);
+                    }
                 }
                 
                 successDiv.style.display = 'block';
