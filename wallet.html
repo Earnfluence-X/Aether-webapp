@@ -10,6 +10,7 @@
 </head>
 <body>
 
+<!-- Desktop Sidebar -->
 <div class="sidebar">
     <div class="logo">AETHER</div>
     <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
@@ -17,11 +18,38 @@
     <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
     <a href="wallet.html" class="nav-item active"><i class="fas fa-wallet"></i> Wallet</a>
     <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
-    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    <div id="adminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
+<!-- Mobile Sidebar -->
+<div id="mobileSidebar" class="sidebar-mobile">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <div id="mobileAdminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="closeMobileMenu()"></div>
+
 <div class="main">
+    <!-- Mobile menu button -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div style="width: 40px;"></div>
+    </div>
+    
     <div style="max-width: 800px; margin: 0 auto;">
         <div class="card" style="text-align: center; margin-bottom: 30px;">
             <h2>Your Balance</h2>
@@ -70,6 +98,12 @@
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { window.location.href = 'login.html'; return; }
         
+        // Check if admin
+        if (user.email === 'earnfluencex@gmail.com') {
+            document.getElementById('adminNavItem').style.display = 'block';
+            document.getElementById('mobileAdminNavItem').style.display = 'block';
+        }
+        
         const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
         const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
         document.getElementById('balance').innerHTML = `$${balance.toFixed(2)}`;
@@ -91,6 +125,18 @@
     
     function addFunds() {
         showNotification('💳 Demo Mode: Real payments with Paystack/Flutterwave coming soon!', 'info');
+    }
+    
+    function toggleMobileMenu() {
+        document.getElementById('mobileSidebar').classList.toggle('open');
+        document.getElementById('menuOverlay').classList.toggle('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileMenu() {
+        document.getElementById('mobileSidebar').classList.remove('open');
+        document.getElementById('menuOverlay').classList.remove('active');
+        document.body.style.overflow = '';
     }
     
     window.addFunds = addFunds;
