@@ -10,6 +10,7 @@
 </head>
 <body>
 
+<!-- Desktop Sidebar -->
 <div class="sidebar">
     <div class="logo">AETHER</div>
     <a href="dashboard.html" class="nav-item active"><i class="fas fa-chart-line"></i> Dashboard</a>
@@ -17,11 +18,39 @@
     <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
     <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
     <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
-    <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    <div id="adminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
     <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
 </div>
 
+<!-- Mobile Sidebar -->
+<div id="mobileSidebar" class="sidebar-mobile">
+    <div class="logo">AETHER</div>
+    <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a>
+    <a href="profile.html" class="nav-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="jobs.html" class="nav-item"><i class="fas fa-briefcase"></i> Jobs</a>
+    <a href="wallet.html" class="nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+    <a href="products.html" class="nav-item"><i class="fas fa-store"></i> Marketplace</a>
+    <div id="mobileAdminNavItem" style="display: none;">
+        <a href="admin.html" class="nav-item"><i class="fas fa-shield-alt"></i> Admin</a>
+    </div>
+    <a href="#" class="nav-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="menu-overlay" onclick="closeMobileMenu()"></div>
+
 <div class="main">
+    <!-- Mobile menu button -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div style="width: 40px;"></div>
+    </div>
+    
+    <!-- User Header with Avatar -->
     <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px;">
         <div class="dashboard-avatar" id="avatarContainer">
             <i class="fas fa-user" id="avatarIcon" style="font-size: 1.5rem; color: white;"></i>
@@ -91,7 +120,6 @@
         notification.style.padding = '12px 24px';
         notification.style.borderRadius = '50px';
         notification.style.zIndex = '2000';
-        notification.style.fontWeight = '500';
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 3000);
     }
@@ -122,11 +150,14 @@
             }
             currentUser = user;
             
-            const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-            
-            if (profileError) {
-                console.error('Profile error:', profileError);
+            // Check if user is admin (earnfluencex@gmail.com)
+            const isAdmin = user.email === 'earnfluencex@gmail.com';
+            if (isAdmin) {
+                document.getElementById('adminNavItem').style.display = 'block';
+                document.getElementById('mobileAdminNavItem').style.display = 'block';
             }
+            
+            const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
             
             document.getElementById('welcomeMsg').innerHTML = `Welcome, ${profile?.full_name || user.email?.split('@')[0] || 'User'}`;
             document.getElementById('userEmail').innerHTML = user.email;
@@ -164,6 +195,18 @@
             console.error('Dashboard error:', error);
             showNotification('Error loading dashboard', 'error');
         }
+    }
+    
+    function toggleMobileMenu() {
+        document.getElementById('mobileSidebar').classList.toggle('open');
+        document.getElementById('menuOverlay').classList.toggle('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeMobileMenu() {
+        document.getElementById('mobileSidebar').classList.remove('open');
+        document.getElementById('menuOverlay').classList.remove('active');
+        document.body.style.overflow = '';
     }
     
     window.logout = async function() {
