@@ -171,34 +171,56 @@
     });
     
     async function loadProfile() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if(!user) { window.location.href = 'login.html'; return; }
-        currentUser = user;
-        
-        const isAdmin = user.email === 'earnfluencex@gmail.com';
-        if (isAdmin) {
-            document.getElementById('adminNavItem').style.display = 'block';
-        }
-        
-        // Fetch profile
-        const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-        
-        if (error) {
-            console.error('Error loading profile:', error);
+        try {
+            const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+            if (userError || !user) { 
+                window.location.href = 'login.html'; 
+                return; 
+            }
+            currentUser = user;
+            
+            const isAdmin = user.email === 'earnfluencex@gmail.com';
+            if (isAdmin) {
+                const adminNav = document.getElementById('adminNavItem');
+                if (adminNav) adminNav.style.display = 'block';
+            }
+            
+            // Fetch profile
+            let { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+            
+            // If profile doesn't exist, create it
+            if (error && error.code === 'PGRST116') {
+                const { data: newProfile, error: insertError } = await supabaseClient.from('profiles').insert([{
+                    id: user.id,
+                    full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+                    created_at: new Date().toISOString()
+                }]).select().single();
+                
+                if (!insertError && newProfile) {
+                    profile = newProfile;
+                } else {
+                    console.error('Error creating profile:', insertError);
+                }
+            } else if (error) {
+                console.error('Error loading profile:', error);
+                showNotification('Error loading profile', 'error');
+                return;
+            }
+            
+            if (profile) {
+                document.getElementById('fullName').value = profile.full_name || '';
+                document.getElementById('headline').value = profile.headline || '';
+                document.getElementById('location').value = profile.location || '';
+                document.getElementById('bio').value = profile.bio || '';
+                userSkills = profile.skills || [];
+                document.getElementById('verifyStatus').innerHTML = profile.verified ? '✓ Verified' : 'Not Verified';
+                currentAvatarUrl = profile.avatar_url;
+                displayAvatar(currentAvatarUrl);
+                renderSkills();
+            }
+        } catch (err) {
+            console.error('Load profile error:', err);
             showNotification('Error loading profile', 'error');
-            return;
-        }
-        
-        if(profile) {
-            document.getElementById('fullName').value = profile.full_name || '';
-            document.getElementById('headline').value = profile.headline || '';
-            document.getElementById('location').value = profile.location || '';
-            document.getElementById('bio').value = profile.bio || '';
-            userSkills = profile.skills || [];
-            document.getElementById('verifyStatus').innerHTML = profile.verified ? '✓ Verified' : 'Not Verified';
-            currentAvatarUrl = profile.avatar_url;
-            displayAvatar(currentAvatarUrl);
-            renderSkills();
         }
     }
     
@@ -227,44 +249,21 @@
         const location = document.getElementById('location').value;
         const bio = document.getElementById('bio').value;
         
-        // First check if profile exists
-        const { data: existingProfile } = await supabaseClient.from('profiles').select('id').eq('id', currentUser.id).single();
+        const { error } = await supabaseClient.from('profiles').upsert({
+            id: currentUser.id,
+            full_name: fullName,
+            headline: headline,
+            location: location,
+            bio: bio,
+            skills: userSkills,
+            avatar_url: currentAvatarUrl,
+            updated_at: new Date().toISOString()
+        });
         
-        let result;
-        if (existingProfile) {
-            // Update existing profile
-            result = await supabaseClient.from('profiles')
-                .update({
-                    full_name: fullName,
-                    headline: headline,
-                    location: location,
-                    bio: bio,
-                    skills: userSkills,
-                    avatar_url: currentAvatarUrl,
-                    updated_at: new Date()
-                })
-                .eq('id', currentUser.id);
-        } else {
-            // Insert new profile
-            result = await supabaseClient.from('profiles')
-                .insert({
-                    id: currentUser.id,
-                    full_name: fullName,
-                    headline: headline,
-                    location: location,
-                    bio: bio,
-                    skills: userSkills,
-                    avatar_url: currentAvatarUrl,
-                    created_at: new Date()
-                });
-        }
-        
-        if (result.error) {
-            showNotification('Error saving profile: ' + result.error.message, 'error');
+        if (error) {
+            showNotification('Error saving profile: ' + error.message, 'error');
         } else {
             showNotification('Profile saved successfully!');
-            // Reload profile to confirm
-            await loadProfile();
         }
     }
     
