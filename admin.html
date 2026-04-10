@@ -29,7 +29,13 @@
 </div>
 
 <div id="adminDashboard" class="admin-only">
-    <div class="sidebar">
+    <!-- Menu Button (Three lines) -->
+    <div class="menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
         <div class="logo">AETHER ADMIN</div>
         <a href="#" class="nav-item active" onclick="showAdminSection('overview')"><i class="fas fa-chart-line"></i> Overview</a>
         <a href="#" class="nav-item" onclick="showAdminSection('users')"><i class="fas fa-users"></i> Users</a>
@@ -38,6 +44,9 @@
         <a href="#" class="nav-item" onclick="showAdminSection('transactions')"><i class="fas fa-chart-line"></i> Transactions</a>
         <a href="#" class="nav-item" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
+
+    <!-- Overlay -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 
     <div class="main">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
@@ -50,15 +59,34 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    // Supabase Config (inlined)
     const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const AVATAR_BUCKET = 'avatars';
+    const AVATAR_BUCKET = 'avartars';
     const JOB_BUCKET = 'job-images';
     const PRODUCT_BUCKET = 'product-images';
     
     const MASTER_PASSWORD = 'AetherAdmin2025';
+    
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar && overlay) {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar && overlay) {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
     
     function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
@@ -213,6 +241,8 @@
     window.deleteJob = deleteJob;
     window.deleteProduct = deleteProduct;
     window.adminLogout = adminLogout;
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
     
     checkAdminAuth();
 </script>
