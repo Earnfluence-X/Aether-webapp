@@ -165,8 +165,16 @@
         if (avatarPath) {
             currentAvatarUrl = avatarPath;
             displayAvatar(avatarPath);
-            await supabaseClient.from('profiles').update({ avatar_url: avatarPath }).eq('id', currentUser.id);
-            showNotification('Avatar updated successfully!');
+            // Update avatar in database
+            const { error } = await supabaseClient.from('profiles')
+                .update({ avatar_url: avatarPath })
+                .eq('id', currentUser.id);
+            
+            if (error) {
+                showNotification('Avatar update failed: ' + error.message, 'error');
+            } else {
+                showNotification('Avatar updated successfully!');
+            }
         }
     });
     
@@ -193,7 +201,8 @@
                 const { data: newProfile, error: insertError } = await supabaseClient.from('profiles').insert([{
                     id: user.id,
                     full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
                 }]).select().single();
                 
                 if (!insertError && newProfile) {
@@ -249,21 +258,26 @@
         const location = document.getElementById('location').value;
         const bio = document.getElementById('bio').value;
         
-        const { error } = await supabaseClient.from('profiles').upsert({
-            id: currentUser.id,
-            full_name: fullName,
-            headline: headline,
-            location: location,
-            bio: bio,
-            skills: userSkills,
-            avatar_url: currentAvatarUrl,
-            updated_at: new Date().toISOString()
-        });
+        // Use .update() with .eq() for clarity
+        const { error } = await supabaseClient
+            .from('profiles')
+            .update({
+                full_name: fullName,
+                headline: headline,
+                location: location,
+                bio: bio,
+                skills: userSkills,
+                avatar_url: currentAvatarUrl,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', currentUser.id);
         
         if (error) {
             showNotification('Error saving profile: ' + error.message, 'error');
         } else {
             showNotification('Profile saved successfully!');
+            // Reload to confirm changes
+            await loadProfile();
         }
     }
     
