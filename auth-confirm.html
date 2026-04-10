@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirming Your Account - Aether</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0A0A0F;
+            color: #FFFFFF;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 48px;
+            border: 1px solid rgba(0,255,200,0.2);
+            max-width: 500px;
+            margin: 20px;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(0,255,200,0.2);
+            border-top-color: #00FFC8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 24px auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .success {
+            color: #00FFC8;
+        }
+        .error {
+            color: #FF3366;
+        }
+        h2 {
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #00FFC8, #6464FF);
+            border-radius: 50px;
+            color: #0A0A0F;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Processing Your Request</h2>
+    <div class="spinner"></div>
+    <div id="message">Please wait while we verify your account...</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SUPABASE_URL = 'https://kpzkjytpbyzhurbvnoyh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwemtqeXRwYnl6aHVyYnZub3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTA2NDMsImV4cCI6MjA5MTI2NjY0M30.fkmq5eanpSkSlnsnhLgUZ94b-6kZ4W7mqL1Dvo4vpcQ';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    async function handleConfirmation() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token_hash = urlParams.get('token_hash');
+        const type = urlParams.get('type');
+        const next = urlParams.get('next') || 'dashboard.html';
+        const messageDiv = document.getElementById('message');
+        
+        if (!token_hash || !type) {
+            messageDiv.innerHTML = '<span class="error">Invalid confirmation link. Missing required parameters.</span>';
+            messageDiv.innerHTML += '<div><a href="login.html" class="btn">Go to Login</a></div>';
+            return;
+        }
+        
+        try {
+            const { error } = await supabaseClient.auth.verifyOtp({
+                token_hash: token_hash,
+                type: type
+            });
+            
+            if (error) {
+                messageDiv.innerHTML = `<span class="error">Verification failed: ${error.message}</span>`;
+                messageDiv.innerHTML += '<div><a href="login.html" class="btn">Go to Login</a></div>';
+            } else {
+                let successMessage = '<span class="success">✓ Verification successful!</span>';
+                if (type === 'email') {
+                    successMessage += '<p>Your email has been confirmed. You can now log in.</p>';
+                } else if (type === 'recovery') {
+                    successMessage += '<p>You can now reset your password.</p>';
+                }
+                messageDiv.innerHTML = successMessage;
+                setTimeout(() => {
+                    window.location.href = next;
+                }, 2000);
+            }
+        } catch (err) {
+            messageDiv.innerHTML = '<span class="error">Network error. Please try again.</span>';
+            messageDiv.innerHTML += '<div><a href="login.html" class="btn">Go to Login</a></div>';
+        }
+    }
+    
+    handleConfirmation();
+</script>
+</body>
+</html>
